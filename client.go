@@ -87,6 +87,40 @@ func (c *Client) Update(collection string, id string, body any) error {
 	return nil
 }
 
+func (c *Client) CreateWithFiles(collection string, data map[string]string, files map[string]string) (ResponseCreate, error) {
+	var response ResponseCreate
+
+	if err := c.Authorize(); err != nil {
+		return response, err
+	}
+
+	request := c.client.R().
+		SetHeader("Content-Type", "application/json").
+		SetPathParam("collection", collection).
+		SetFormData(data).
+		SetResult(&response)
+
+	if len(files) > 0 {
+		request = request.SetFiles(files)
+	}
+
+	resp, err := request.Post(c.url + "/api/collections/{collection}/records")
+	if err != nil {
+		return response, fmt.Errorf("[create] can't send update request to pocketbase, err %w", err)
+	}
+
+	if resp.IsError() {
+		return response, fmt.Errorf("[create] pocketbase returned status: %d, msg: %s, data: %s, err %w",
+			resp.StatusCode(),
+			resp.String(),
+			fmt.Sprintf("%+v", data), // TODO remove that after debugging
+			ErrInvalidResponse,
+		)
+	}
+
+	return *resp.Result().(*ResponseCreate), nil
+}
+
 func (c *Client) Create(collection string, body any) (ResponseCreate, error) {
 	var response ResponseCreate
 
